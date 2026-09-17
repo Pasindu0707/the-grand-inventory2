@@ -20,9 +20,9 @@ set -uo pipefail
 # ---------------------------------------------------------------------------
 # Fill these in. Run with --discover to have them printed for you.
 # ---------------------------------------------------------------------------
-COMPARTMENT_OCID="${COMPARTMENT_OCID:-}"
-SUBNET_OCID="${SUBNET_OCID:-}"
-AVAILABILITY_DOMAIN="${AVAILABILITY_DOMAIN:-}"
+COMPARTMENT_OCID="${COMPARTMENT_OCID:-ocid1.tenancy.oc1..aaaaaaaahwah3rgwvoftlajr5ohakqkmkceowqgt6fe6squsm2y4idwim5eq}"
+SUBNET_OCID="${SUBNET_OCID:-ocid1.subnet.oc1.ap-hyderabad-1.aaaaaaaa6zgnlget5e5shrxqjaepk46xkr2rtpxg6t3gikxgqzjv2gzvkmlq}"
+AVAILABILITY_DOMAIN="${AVAILABILITY_DOMAIN:-wuLW:AP-HYDERABAD-1-AD-1}"
 
 DISPLAY_NAME="${DISPLAY_NAME:-thegrand}"
 OCPUS="${OCPUS:-2}"
