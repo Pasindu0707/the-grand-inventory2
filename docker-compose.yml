@@ -1,0 +1,29 @@
+# Local development database.
+#
+# Port 5433 on purpose: this machine already runs a PostgreSQL 16 service on
+# 5432, and binding over it would be an unpleasant surprise for whatever else
+# uses it.
+#
+#   docker compose up -d
+#   npm run db:reset-all
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: grand_db
+    environment:
+      POSTGRES_USER: grand
+      POSTGRES_PASSWORD: grand_dev
+      POSTGRES_DB: thegrand
+    ports:
+      - '5433:5432'
+    volumes:
+      - grand_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U grand -d thegrand']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  grand_pgdata:

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.angular/
+.idea/
+.vscode/
+*.log
+
+# Generated output — rebuild with: npm run db:generate
+seed.sql
+
+# Deployment secrets and local backups. deploy/.env holds the database
+# password and JWT secret -- committing it puts both in history permanently.
+deploy/.env
+backups/
+*.sql.gz

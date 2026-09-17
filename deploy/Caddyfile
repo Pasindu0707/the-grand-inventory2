@@ -1,0 +1,51 @@
+# One origin for everything. Caddy serves the Angular bundle and forwards the
+# API and upload paths to the api container, so the browser only ever talks to
+# one host. That removes CORS from the picture entirely.
+#
+# SITE_ADDRESS comes from the environment (see .env.example):
+#   inventory.thegrand.lk   -> Caddy obtains a Let's Encrypt certificate
+#   :80                     -> plain HTTP, for testing on the raw Oracle IP
+#                              before DNS is pointed at the server
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Fastify serves these; everything under them is the API's business.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Photographs of cash-purchase slips and wastage. Served by Fastify from the
+	# uploads volume rather than by Caddy, because the API applies the access
+	# checks -- a slip should not be readable just because someone guessed a URL.
+	handle /uploads/* {
+		reverse_proxy api:3000
+	}
+
+	handle /health {
+		reverse_proxy api:3000
+	}
+
+	# Everything else is the Angular app. try_files sends unknown paths to
+	# index.html so the router can handle deep links like /requests/42 on a
+	# hard refresh, instead of Caddy returning 404.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
+}

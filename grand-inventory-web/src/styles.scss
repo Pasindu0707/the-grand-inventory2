@@ -1,0 +1,1344 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   The Grand - inventory console.
+
+   The look comes from the thing the system actually is: a bound stock ledger.
+   Entries stack downward and are never edited; a correction is a new line that
+   reverses an old one. So the interface is ruled, not carded - hairlines, a
+   firm margin rule down the left of anything that holds entries, and every
+   quantity set in a monospace face so a column of figures aligns the way it
+   would on a counting sheet.
+
+   Two faces, two jobs. Archivo, slightly condensed, does labels and headings
+   like the signage on steel shelving. IBM Plex Mono does every number, code
+   and document id, because those are read by digit, not by word.
+
+   Colour is cold store plus brass: the walk-in, the shelving, and the weights
+   on the scale. Brass appears only where the eye has to go - the open screen,
+   the figure that matters, the row that needs a decision.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@use 'primeicons/primeicons.css';
+@use 'ngx-toastr/toastr';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* Ink - the rail and the type */
+    --g-ink: #0f1518;
+    --g-ink-2: #172026;
+
+    /* Ground and surfaces */
+    --g-paper: #f1f3f2;
+    --g-card: #ffffff;
+    --g-card-2: #f6f8f7;
+
+    /* Rules and dividers - hairlines, never shadows */
+    --g-rule: #dce2e0;
+    --g-rule-strong: #c3cbc9;
+
+    /* Type */
+    --g-text: #0f1518;
+    --g-text-2: #55625f;
+    --g-text-3: #6e7c7a;
+
+    /* Brass - the accent, used sparingly */
+    --g-brass: #b08039;
+    --g-brass-deep: #7a5326;
+    --g-brass-wash: #f6efe2;
+
+    /* Signals. Named for what they mean in the store, not for their hue. */
+    --g-ok: #2c6b58; /* counted, verified, received */
+    --g-ok-wash: #e6f0ec;
+    --g-low: #b4530f; /* below reorder, needs a decision */
+    --g-low-wash: #fbeee3;
+    --g-out: #9b1b3c; /* stock-out, rejected, reversed */
+    --g-out-wash: #f9e8ec;
+    --g-info: #2f5d7c;
+    --g-info-wash: #e8eff4;
+
+    --g-radius: 4px;
+    --g-radius-lg: 6px;
+    --g-rail-w: 244px;
+    --g-topbar-h: 56px;
+
+    color-scheme: light;
+}
+
+.app-dark {
+    /* The rail has to stay the darkest thing on screen. Left at the light
+       theme's value it lands on exactly the dark ground colour, and the whole
+       left edge of the app disappears. */
+    --g-ink: #080c0e;
+
+    --g-paper: #0f1518;
+    --g-card: #172026;
+    --g-card-2: #1c262b;
+
+    --g-rule: #2a3437;
+    --g-rule-strong: #3a464a;
+
+    --g-text: #eef2f1;
+    --g-text-2: #a7b3b1;
+    --g-text-3: #8b9997;
+
+    --g-brass: #d8b278;
+    --g-brass-deep: #e7cfa7;
+    --g-brass-wash: #2a2318;
+
+    --g-ok: #6bbba3;
+    --g-ok-wash: #16281f;
+    --g-low: #e09355;
+    --g-low-wash: #2b1c10;
+    --g-out: #e77b96;
+    --g-out-wash: #2b141c;
+    --g-info: #86b4d4;
+    --g-info-wash: #142029;
+
+    color-scheme: dark;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+body {
+    background: var(--g-paper);
+    color: var(--g-text);
+    font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    font-stretch: 96%;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: -0.018em;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+:focus-visible {
+    outline: 2px solid var(--g-brass);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+
+/* Boot placeholder, replaced the moment Angular takes over. */
+.boot {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: #0f1518;
+    color: #f1f3f2;
+}
+.boot__rule {
+    width: 3px;
+    height: 46px;
+    background: #b08039;
+}
+.boot__label {
+    font: 600 13px/1 'Archivo', system-ui, sans-serif;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+/* ── Figures ──────────────────────────────────────────────────────────────────
+   Every quantity, price, code and document id. Mono and tabular so a column
+   of numbers lines up by digit - the one thing a stock sheet must do. */
+
+.fig,
+.font-mono,
+.ledger td.num,
+.ledger th.num {
+    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.fig--lg {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+}
+
+/* The unit rides small and quiet next to its number. */
+.unit {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-size: 0.78em;
+    font-weight: 500;
+    color: var(--g-text-3);
+    margin-left: 0.28em;
+}
+
+/* ── Eyebrow: the small caps label above a group or a figure ─────────────── */
+
+.eyebrow {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--g-text-3);
+}
+
+/* ── The shell ────────────────────────────────────────────────────────────── */
+
+.shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.rail {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--g-rail-w);
+    display: flex;
+    flex-direction: column;
+    background: var(--g-ink);
+    color: #cfd8d6;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    z-index: 40;
+    overflow: hidden;
+}
+
+.rail__brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    height: var(--g-topbar-h);
+    padding: 0 16px;
+    flex: 0 0 auto;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.rail__mark {
+    width: 3px;
+    height: 22px;
+    background: var(--g-brass);
+    flex: 0 0 auto;
+}
+
+.rail__name {
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    color: #fff;
+    line-height: 1.1;
+}
+
+.rail__sub {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+    line-height: 1.4;
+}
+
+.rail__scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 10px 0 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+.rail__scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.rail__scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 3px;
+}
+
+.rail__group {
+    padding: 14px 16px 5px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.34);
+}
+
+/* The margin rule: 3px on the left edge, brass when this is where you are.
+   The same device marks a row that is asking for a decision. */
+.rail__link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px 8px 17px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+    border-left: 3px solid transparent;
+    transition:
+        background-color 0.12s ease,
+        color 0.12s ease;
+    cursor: pointer;
+}
+
+.rail__link i {
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.42);
+    transition: color 0.12s ease;
+}
+
+.rail__link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+.rail__link:hover i {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.rail__link--on {
+    background: rgba(176, 128, 57, 0.13);
+    border-left-color: var(--g-brass);
+    color: #fff;
+    font-weight: 600;
+}
+.rail__link--on i {
+    color: var(--g-brass);
+}
+
+.rail__count {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--g-brass);
+    color: #17140d;
+}
+
+.rail__foot {
+    flex: 0 0 auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding: 10px 14px;
+}
+
+/* ── Main column ──────────────────────────────────────────────────────────── */
+
+.main {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: var(--g-rail-w);
+    display: flex;
+    flex-direction: column;
+}
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    height: var(--g-topbar-h);
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    background: var(--g-card);
+    border-bottom: 1px solid var(--g-rule);
+}
+
+.topbar__title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar__spacer {
+    flex: 1 1 auto;
+}
+
+.iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--g-radius);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--g-text-2);
+    cursor: pointer;
+    transition:
+        background-color 0.12s ease,
+        color 0.12s ease;
+}
+.iconbtn:hover {
+    background: var(--g-card-2);
+    color: var(--g-text);
+    border-color: var(--g-rule);
+}
+
+/* Outlet and business day, read together: which store, and which day the
+   entries you are about to write will belong to. */
+.stamp {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 4px 10px;
+    border: 1px solid var(--g-rule);
+    border-radius: var(--g-radius);
+    background: var(--g-card-2);
+    cursor: pointer;
+    max-width: 280px;
+}
+.stamp:hover {
+    border-color: var(--g-rule-strong);
+}
+.stamp__code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--g-brass-deep);
+    background: var(--g-brass-wash);
+    border-radius: 2px;
+    padding: 1px 5px;
+    flex: 0 0 auto;
+}
+.stamp__name {
+    font-size: 12.5px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.canvas {
+    flex: 1 1 auto;
+    padding: 22px 20px 56px;
+    max-width: 1560px;
+    width: 100%;
+}
+
+/* ── Page head ────────────────────────────────────────────────────────────── */
+
+.pagehead {
+    margin-bottom: 18px;
+}
+.pagehead__title {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+}
+.pagehead__sub {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--g-text-2);
+    max-width: 68ch;
+}
+
+/* ── Panel: the ruled container everything sits in ────────────────────────── */
+
+.panel {
+    background: var(--g-card);
+    border: 1px solid var(--g-rule);
+    border-radius: var(--g-radius-lg);
+    overflow: hidden;
+}
+
+.panel__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--g-rule);
+    background: var(--g-card-2);
+}
+
+.panel__title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.panel__body {
+    padding: 14px;
+}
+
+/* ── The ledger table ─────────────────────────────────────────────────────── */
+
+.ledger {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.ledger thead th {
+    text-align: left;
+    padding: 7px 12px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--g-text-3);
+    background: var(--g-card-2);
+    border-bottom: 1px solid var(--g-rule-strong);
+    white-space: nowrap;
+}
+
+.ledger tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--g-rule);
+    vertical-align: top;
+}
+
+.ledger tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.ledger tbody tr:hover td {
+    background: var(--g-card-2);
+}
+
+.ledger td.num,
+.ledger th.num {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* A row that is asking for a decision carries the same margin rule the rail
+   uses for "you are here". */
+.ledger tr.flagged td:first-child {
+    box-shadow: inset 3px 0 0 var(--g-low);
+}
+.ledger tr.severe td:first-child {
+    box-shadow: inset 3px 0 0 var(--g-out);
+}
+
+/* ── Filter bars ──────────────────────────────────────────────────────────── */
+/*
+   These were missing entirely, so every filter row in the console rendered as
+   a run of unstyled inline text -- "AllKitchenBakery and pastryBar" with no
+   gaps and nothing showing which one was selected. Six screens looked broken
+   in the same way.
+
+   Not the purchased template's rounded pills. A filter is a tab along the top
+   of a list of entries, so it reads as one: a flat row of labels on a rule,
+   with the open one marked by a brass underline and nothing else moving.
+*/
+
+.app-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    border-bottom: 1px solid var(--g-rule);
+}
+
+.app-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    margin-bottom: -1px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--g-text-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        color 0.12s ease,
+        border-color 0.12s ease,
+        background-color 0.12s ease;
+}
+
+.app-filter i {
+    font-size: 11px;
+}
+
+.app-filter:hover:not(.app-filter--on) {
+    color: var(--g-text);
+    background: var(--g-card-2);
+}
+
+.app-filter:focus-visible {
+    outline: 2px solid var(--g-brass);
+    outline-offset: -2px;
+}
+
+/* The open filter. Brass, and only here -- the accent marks where the eye has
+   to go, and on this row that is which list you are looking at. */
+.app-filter--on {
+    color: var(--g-text);
+    border-bottom-color: var(--g-brass);
+    font-weight: 700;
+    cursor: default;
+}
+
+/* Two filter bars often sit side by side -- section on the left, status on the
+   right. A divider between them says they are separate questions rather than
+   one long row of nine choices. */
+.app-filters + .app-filters {
+    border-left: 1px solid var(--g-rule);
+    padding-left: 10px;
+    margin-left: 4px;
+}
+
+@media (max-width: 640px) {
+    .app-filters + .app-filters {
+        border-left: 0;
+        padding-left: 0;
+        margin-left: 0;
+    }
+}
+
+/* ── Chips ────────────────────────────────────────────────────────────────── */
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    background: var(--g-card-2);
+    color: var(--g-text-2);
+    border: 1px solid var(--g-rule);
+}
+.chip--ok {
+    background: var(--g-ok-wash);
+    color: var(--g-ok);
+    border-color: transparent;
+}
+.chip--low {
+    background: var(--g-low-wash);
+    color: var(--g-low);
+    border-color: transparent;
+}
+.chip--out {
+    background: var(--g-out-wash);
+    color: var(--g-out);
+    border-color: transparent;
+}
+.chip--info {
+    background: var(--g-info-wash);
+    color: var(--g-info);
+    border-color: transparent;
+}
+.chip--brass {
+    background: var(--g-brass-wash);
+    color: var(--g-brass-deep);
+    border-color: transparent;
+}
+
+/* Item and document codes read as codes. */
+.code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--g-text-3);
+}
+
+/* ── Stat: one figure that matters, with its label above it ───────────────── */
+
+.stat {
+    position: relative;
+    padding: 12px 14px 13px;
+    background: var(--g-card);
+    border: 1px solid var(--g-rule);
+    border-radius: var(--g-radius-lg);
+}
+.stat::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    background: var(--g-rule-strong);
+    border-radius: 3px;
+}
+.stat--brass::before {
+    background: var(--g-brass);
+}
+.stat--low::before {
+    background: var(--g-low);
+}
+.stat--out::before {
+    background: var(--g-out);
+}
+.stat--ok::before {
+    background: var(--g-ok);
+}
+.stat__label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--g-text-3);
+}
+.stat__value {
+    margin-top: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+}
+.stat__note {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--g-text-2);
+}
+a.stat {
+    display: block;
+    transition: border-color 0.12s ease;
+}
+a.stat:hover {
+    border-color: var(--g-rule-strong);
+}
+
+/* ── Inline state chip ────────────────────────────────────────────────────────
+   For a line that is physically in front of you but already somebody's job.
+   Quieter than a tag: it is a fact about the row, not a call to action.      */
+
+.app-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.app-chip--wait {
+    background: var(--g-low-wash);
+    color: var(--g-low);
+}
+
+/* ── Two-way choice ───────────────────────────────────────────────────────────
+   For a question with exactly two answers and no safe default. Neither side is
+   preselected and neither is styled as the gentler option: sending goods back
+   and binning them are both decisions about money, and a control that nudges
+   towards one of them is making the decision for the person clicking it.     */
+
+.app-choice {
+    display: inline-flex;
+    flex: none;
+    border: 1px solid var(--g-rule-strong);
+    border-radius: var(--g-radius);
+    overflow: hidden;
+}
+
+.app-choice__option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 0;
+    background: var(--g-card);
+    color: var(--g-text-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.app-choice__option + .app-choice__option {
+    border-left: 1px solid var(--g-rule-strong);
+}
+.app-choice__option:hover {
+    background: var(--g-card-2);
+    color: var(--g-text);
+}
+.app-choice__option:focus-visible {
+    outline: 2px solid var(--g-brass);
+    outline-offset: -2px;
+}
+
+.app-choice__option--on {
+    background: var(--g-brass);
+    border-color: var(--g-brass);
+    color: #fff;
+}
+.app-choice__option--on:hover {
+    background: var(--g-brass);
+    color: #fff;
+}
+
+.app-choice__option--bin.app-choice__option--on {
+    background: var(--g-out);
+    border-color: var(--g-out);
+}
+.app-choice__option--bin.app-choice__option--on:hover {
+    background: var(--g-out);
+}
+
+/* ── Lifecycle strip ──────────────────────────────────────────────────────────
+   Not a progress bar: it does not say where this document is, it says what the
+   four states of every such document mean and who is responsible for each.
+   Read once, then ignored - so it is quiet, ruled, and out of the way.       */
+
+.app-flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--g-rule);
+    border-radius: var(--g-radius);
+    background: var(--g-rule);
+    overflow: hidden;
+}
+
+.app-flow__step {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    background: var(--g-card-2);
+}
+
+.app-flow__label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--g-text-2);
+}
+
+.app-flow__who {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--g-brass-deep);
+}
+
+.app-flow__what {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--g-text-3);
+}
+
+/* ── Step header ──────────────────────────────────────────────────────────────
+   For the screens that ask one question at a time. A rule under the row, a
+   brass mark on the step you are on, and a tick on the ones behind you - the
+   same vocabulary as the filter chips, because it is the same kind of object:
+   where am I, and what else is there.                                        */
+
+.app-steps {
+    border-bottom: 1px solid var(--g-rule);
+}
+
+.app-steps__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.app-steps__step + .app-steps__step {
+    padding-left: 6px;
+}
+
+.app-steps__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    margin-bottom: -1px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--g-text-3);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.app-steps__step--done .app-steps__button {
+    color: var(--g-text-2);
+    cursor: pointer;
+}
+.app-steps__step--done .app-steps__button:hover {
+    color: var(--g-text);
+}
+.app-steps__step--on .app-steps__button {
+    color: var(--g-text);
+    border-bottom-color: var(--g-brass);
+    font-weight: 600;
+}
+.app-steps__button:focus-visible {
+    outline: 2px solid var(--g-brass);
+    outline-offset: -2px;
+}
+
+.app-steps__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--g-rule-strong);
+    border-radius: 999px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+}
+.app-steps__step--on .app-steps__mark {
+    border-color: var(--g-brass);
+    background: var(--g-brass);
+    color: #fff;
+}
+.app-steps__step--done .app-steps__mark {
+    border-color: var(--g-ok);
+    color: var(--g-ok);
+    font-size: 10px;
+}
+
+.app-steps__hint {
+    padding: 8px 2px 10px;
+    font-size: 13px;
+    color: var(--g-text-2);
+}
+
+/* ── Product picker ───────────────────────────────────────────────────────────
+   A hundred products is too many to scroll and exactly right to type into, so
+   the item field is a search box with a list under it rather than a dropdown.
+   Ruled, like everything that holds entries: a hairline box, a brass rule down
+   the highlighted row, and the code in the mono face so it reads by digit.  */
+
+.app-picker {
+    position: relative;
+}
+
+.app-picker__field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.app-picker__icon {
+    position: absolute;
+    left: 10px;
+    font-size: 12px;
+    color: var(--g-text-3);
+    pointer-events: none;
+}
+
+.app-picker__input {
+    width: 100%;
+    padding: 10px 32px 10px 30px;
+    border: 1px solid var(--g-rule);
+    border-radius: var(--g-radius);
+    background: var(--g-card);
+    color: var(--g-text);
+    font: inherit;
+    font-size: 14px;
+}
+.app-picker__input::placeholder {
+    color: var(--g-text-3);
+}
+.app-picker__input:focus {
+    outline: none;
+    border-color: var(--g-brass);
+    box-shadow: 0 0 0 1px var(--g-brass);
+}
+.app-picker__input:disabled {
+    background: var(--g-card-2);
+    color: var(--g-text-3);
+    cursor: not-allowed;
+}
+/* Something is chosen: say so in the weight, not with a second widget. The
+   extra right padding is room for the code, which sits inside the field so a
+   chosen row is exactly as tall as an empty one. */
+.app-picker__input--chosen {
+    font-weight: 600;
+    padding-right: 104px;
+}
+
+.app-picker__inline-code {
+    position: absolute;
+    right: 32px;
+    max-width: 68px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--g-text-3);
+    pointer-events: none;
+}
+
+.app-picker__clear {
+    position: absolute;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: var(--g-radius);
+    background: transparent;
+    color: var(--g-text-3);
+    font-size: 11px;
+    cursor: pointer;
+}
+.app-picker__clear:hover {
+    background: var(--g-card-2);
+    color: var(--g-text);
+}
+
+.app-picker__code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+}
+
+.app-picker__list {
+    position: absolute;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    margin-top: 2px;
+    max-height: 17rem;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    border: 1px solid var(--g-rule-strong);
+    border-radius: var(--g-radius);
+    background: var(--g-card);
+    box-shadow: 0 10px 28px rgb(15 21 24 / 12%);
+}
+
+.app-picker__group {
+    padding: 7px 12px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--g-text-3);
+    background: var(--g-card-2);
+}
+
+.app-picker__option {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 12px;
+    border-left: 3px solid transparent;
+    border-bottom: 1px solid var(--g-rule);
+    cursor: pointer;
+}
+.app-picker__option:last-child {
+    border-bottom: 0;
+}
+.app-picker__option--on {
+    border-left-color: var(--g-brass);
+    background: var(--g-brass-wash);
+}
+
+.app-picker__name {
+    font-size: 14px;
+    min-width: 0;
+}
+
+.app-picker__meta {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex: none;
+    font-size: 11px;
+    color: var(--g-text-3);
+}
+
+.app-picker__empty {
+    padding: 14px 12px;
+    font-size: 13px;
+    color: var(--g-text-3);
+}
+
+/* ── Notices ──────────────────────────────────────────────────────────────── */
+
+.app-note {
+    --note: var(--g-info);
+    --note-wash: var(--g-info-wash);
+    padding: 11px 13px;
+    border-radius: var(--g-radius);
+    border: 1px solid transparent;
+    border-left: 3px solid var(--note);
+    background: var(--note-wash);
+    color: var(--g-text);
+    font-size: 13px;
+}
+.app-note--error {
+    --note: var(--g-out);
+    --note-wash: var(--g-out-wash);
+}
+.app-note--warn {
+    --note: var(--g-low);
+    --note-wash: var(--g-low-wash);
+}
+.app-note--ok {
+    --note: var(--g-ok);
+    --note-wash: var(--g-ok-wash);
+}
+.app-note--strong {
+    border-left-width: 5px;
+}
+.app-note__title {
+    font-weight: 600;
+    color: var(--note);
+}
+
+/* Required-field marker: one definition rather than an asterisk typed into a
+   hundred label strings. Generated content is announced, so it carries. */
+.app-req::after {
+    content: ' *';
+    color: var(--g-out);
+    font-weight: 700;
+}
+
+.app-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    font-weight: 600;
+    font-size: 12px;
+    background: var(--g-brass-wash);
+    color: var(--g-brass-deep);
+}
+
+/* ── Empty state: an invitation, not a shrug ──────────────────────────────── */
+
+.empty {
+    padding: 44px 20px;
+    text-align: center;
+}
+.empty__rule {
+    width: 3px;
+    height: 26px;
+    background: var(--g-rule-strong);
+    margin: 0 auto 12px;
+}
+.empty__title {
+    font-weight: 600;
+    font-size: 14px;
+}
+.empty__body {
+    margin-top: 3px;
+    font-size: 13px;
+    color: var(--g-text-2);
+}
+
+/* ── Tailwind surface utilities, mapped onto the ledger palette ───────────────
+   The operating screens carried over from the first build reach for
+   `bg-surface-0`, `text-surface-500` and `border-surface`. Pointing those
+   utilities at the tokens above means one palette drives both the new chrome
+   and the screens, rather than a thousand class attributes being rewritten. */
+
+.bg-surface-0 {
+    background-color: var(--g-card) !important;
+}
+.bg-surface-50,
+.bg-surface-100 {
+    background-color: var(--g-card-2) !important;
+}
+.app-dark .dark\:bg-surface-900 {
+    background-color: var(--g-card) !important;
+}
+.app-dark .dark\:bg-surface-800 {
+    background-color: var(--g-card-2) !important;
+}
+.text-surface-400,
+.text-surface-500,
+.text-surface-600 {
+    color: var(--g-text-2) !important;
+}
+.text-surface-700,
+.text-surface-900 {
+    color: var(--g-text) !important;
+}
+.border-surface,
+.border-surface-200 {
+    border-color: var(--g-rule) !important;
+}
+.divide-surface > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--g-rule) !important;
+}
+
+/* Those screens wrap content in `rounded-2xl border` cards. Softened to the
+   ledger's own radius so both halves of the app agree on one shape. */
+.rounded-2xl,
+.rounded-xl {
+    border-radius: var(--g-radius-lg) !important;
+}
+
+/* ── PrimeNG corrections ──────────────────────────────────────────────────── */
+
+.p-button {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+
+.p-inputtext {
+    font-family: 'Archivo', system-ui, sans-serif;
+}
+
+/* Quantity fields are read as figures, so they are set as figures. */
+.p-inputnumber-input {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.p-drawer .p-drawer-header {
+    border-bottom: 1px solid var(--g-rule);
+    padding: 13px 16px;
+}
+.p-drawer .p-drawer-content {
+    padding: 16px;
+}
+
+/* ── Toasts ───────────────────────────────────────────────────────────────────
+   ngx-toastr's own look is a rounded coloured slab with a drop shadow. Reset to
+   the console's card and let the left rule carry the meaning, the way notices
+   and flagged rows already do. */
+
+.toast-container .ngx-toastr {
+    width: 340px;
+    padding: 12px 14px 12px 15px;
+    border: 1px solid var(--g-rule);
+    border-left: 3px solid var(--g-info);
+    border-radius: var(--g-radius);
+    background: var(--g-card);
+    color: var(--g-text);
+    box-shadow: 0 6px 22px rgba(15, 21, 24, 0.14);
+    background-image: none;
+}
+.toast-container .ngx-toastr:hover {
+    box-shadow: 0 8px 26px rgba(15, 21, 24, 0.2);
+    opacity: 1;
+}
+.toast-container .toast-success {
+    border-left-color: var(--g-ok);
+}
+.toast-container .toast-error {
+    border-left-color: var(--g-out);
+}
+.toast-container .toast-warning {
+    border-left-color: var(--g-low);
+}
+.toast-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+.toast-message {
+    font-size: 13px;
+    color: var(--g-text-2);
+}
+.toast-container .toast-close-button {
+    color: var(--g-text-3);
+    text-shadow: none;
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+/* SweetAlert2 ships a container at z-index 1060, which puts a confirmation
+   underneath a PrimeNG drawer mask: visible but greyed, and every click
+   swallowed by the mask rather than reaching the button. */
+.swal2-container {
+    z-index: 20000 !important;
+}
+
+/* ── Narrow screens: the rail becomes a drawer ────────────────────────────── */
+
+/* The toggle and the rail have to change at the same width. Left to Tailwind's
+   `lg:hidden` they would not: `lg` is 1024px and the rail collapses at 900,
+   which puts a menu button next to an already-visible menu for 124px. */
+.railtoggle {
+    display: none;
+}
+
+.scrim {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .railtoggle {
+        display: inline-flex;
+    }
+    .rail {
+        transform: translateX(-100%);
+        transition: transform 0.18s ease;
+    }
+    .rail--open {
+        transform: translateX(0);
+    }
+    /* A real element, not a box-shadow: tapping beside an open drawer to close
+       it is the gesture people already have. */
+    .scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 35;
+        background: rgba(15, 21, 24, 0.46);
+        border: 0;
+    }
+    .main {
+        margin-left: 0;
+    }
+    .canvas {
+        padding: 16px 14px 48px;
+    }
+}

@@ -1,0 +1,26 @@
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "grand-api",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "dev",
+                "--prefix",
+                "api"
+            ],
+            "port": 3000
+        },
+        {
+            "name": "grand-console",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "start",
+                "--prefix",
+                "grand-inventory-web"
+            ],
+            "port": 4300
+        }
+    ]
+}

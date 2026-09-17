@@ -1,0 +1,115 @@
+# The Grand - production stack for a single Oracle Cloud A1 instance.
+#
+#   cd /opt/thegrand
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+#
+# Three services and a one-shot migrator. The API waits for the database to be
+# healthy AND for migrations to finish, so a deploy that changes the schema can
+# never race the server that depends on it.
+
+name: thegrand
+
+services:
+    db:
+        image: postgres:16-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
+            # Without this, a container restart on a fresh volume initialises
+            # with trust auth on the socket.
+            POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256'
+        # No ports block on purpose. Postgres is reachable only from the other
+        # containers on this network -- never from the internet. Connect from a
+        # laptop with an SSH tunnel, not by opening 5432.
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        # Parallel query workers use /dev/shm; Docker's 64MB default is small
+        # enough to cause intermittent failures under load.
+        shm_size: 512mb
+        command: >
+            postgres
+            -c shared_buffers=${PG_SHARED_BUFFERS:-3GB}
+            -c effective_cache_size=${PG_EFFECTIVE_CACHE:-6GB}
+            -c work_mem=16MB
+            -c maintenance_work_mem=256MB
+            -c max_connections=60
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+            interval: 10s
+            timeout: 5s
+            retries: 12
+            start_period: 20s
+
+    # Runs db/migrations/*.sql once, then exits 0. The api service will not start
+    # until this has completed successfully, so a failed migration stops the
+    # deploy instead of leaving the old server running against a new schema.
+    migrate:
+        build:
+            context: ..
+            dockerfile: deploy/api.Dockerfile
+        image: thegrand-api:latest
+        restart: 'no'
+        environment:
+            DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+        command: ['node', 'scripts/migrate.mjs']
+        depends_on:
+            db:
+                condition: service_healthy
+
+    api:
+        build:
+            context: ..
+            dockerfile: deploy/api.Dockerfile
+        image: thegrand-api:latest
+        restart: unless-stopped
+        environment:
+            NODE_ENV: production
+            PORT: '3000'
+            HOST: 0.0.0.0
+            DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+            JWT_SECRET: ${JWT_SECRET}
+            ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-12h}
+            REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-30d}
+            MAX_PIN_ATTEMPTS: ${MAX_PIN_ATTEMPTS:-5}
+            PIN_LOCKOUT_MINUTES: ${PIN_LOCKOUT_MINUTES:-15}
+            # Same-origin in production, so this is belt and braces rather than
+            # load-bearing. It matters only if someone points a second domain here.
+            CORS_ORIGIN: ${PUBLIC_URL}
+            UPLOAD_DIR: /app/uploads
+            MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-8388608}
+        volumes:
+            - uploads:/app/uploads
+        depends_on:
+            db:
+                condition: service_healthy
+            migrate:
+                condition: service_completed_successfully
+
+    web:
+        build:
+            context: ..
+            dockerfile: deploy/web.Dockerfile
+        image: thegrand-web:latest
+        restart: unless-stopped
+        environment:
+            SITE_ADDRESS: ${SITE_ADDRESS}
+        ports:
+            - '80:80'
+            - '443:443'
+        volumes:
+            # Certificates live here. Losing this volume means Caddy re-requests
+            # from Let's Encrypt, which is rate limited -- so keep it.
+            - caddy_data:/data
+            - caddy_config:/config
+            - caddy_logs:/var/log/caddy
+        depends_on:
+            - api
+
+volumes:
+    pgdata:
+    uploads:
+    caddy_data:
+    caddy_config:
+    caddy_logs:

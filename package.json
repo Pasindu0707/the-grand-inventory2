@@ -1,0 +1,24 @@
+{
+    "name": "thegrand-inventory",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "The Grand - inventory system. Database tooling and demo-data generator.",
+    "scripts": {
+        "db:migrate": "node scripts/migrate.mjs",
+        "db:generate": "tsx seed/generate.ts > seed.sql",
+        "db:seed": "node scripts/run-sql.mjs seed.sql",
+        "db:reset": "node scripts/run-sql.mjs db/reset.sql",
+        "db:fresh": "node scripts/wipe-and-admins.mjs",
+        "db:drop": "node scripts/drop.mjs",
+        "db:reset-all": "npm run db:drop && npm run db:migrate && npm run db:generate && npm run db:seed",
+        "db:verify": "node scripts/verify.mjs",
+        "check:returns": "node scripts/check-returns.mjs",
+        "db:clear-returns": "node scripts/clear-returns.mjs"
+    },
+    "devDependencies": {
+        "bcryptjs": "^3.0.2",
+        "pg": "^8.13.1",
+        "tsx": "^4.19.2"
+    }
+}

@@ -1,0 +1,101 @@
+code,name,category,storage,stock_unit,pack_name,qty_in_stock_unit,par_level,reorder_point,shelf_life_days,is_critical
+DRY-001,Rice - samba,Dry goods,dry,g,25 kg sack,25000,50000,20000,180,FALSE
+DRY-002,Rice - basmati,Dry goods,dry,g,5 kg pack,5000,15000,5000,365,FALSE
+DRY-003,Wheat flour,Dry goods,dry,g,25 kg sack,25000,75000,25000,120,TRUE
+DRY-004,Bread flour,Dry goods,dry,g,25 kg sack,25000,50000,25000,120,TRUE
+DRY-005,Caster sugar,Dry goods,dry,g,50 kg sack,50000,50000,20000,365,TRUE
+DRY-006,Icing sugar,Dry goods,dry,g,1 kg pack,1000,8000,3000,180,FALSE
+DRY-007,Salt,Dry goods,dry,g,1 kg pack,1000,10000,4000,730,FALSE
+DRY-008,Spaghetti,Dry goods,dry,g,500 g pack,500,10000,4000,365,FALSE
+DRY-009,Penne,Dry goods,dry,g,500 g pack,500,8000,3000,365,FALSE
+DRY-010,Red lentils,Dry goods,dry,g,1 kg pack,1000,10000,4000,270,FALSE
+DRY-011,Chickpeas,Dry goods,dry,g,1 kg pack,1000,5000,2000,270,FALSE
+DRY-012,Breadcrumbs,Dry goods,dry,g,1 kg pack,1000,4000,1500,120,FALSE
+DRY-013,Cocoa powder,Dry goods,dry,g,1 kg pack,1000,4000,1500,365,TRUE
+DRY-014,Dark chocolate couverture,Dry goods,dry,g,2.5 kg box,2500,7500,2500,365,TRUE
+DRY-015,Instant yeast,Dry goods,dry,g,500 g pack,500,2000,750,365,FALSE
+DRY-016,Baking powder,Dry goods,dry,g,1 kg pack,1000,2000,800,365,FALSE
+DRY-017,Curry powder - roasted,Dry goods,dry,g,1 kg pack,1000,3000,1000,180,FALSE
+DRY-018,Chilli powder,Dry goods,dry,g,1 kg pack,1000,4000,1500,180,FALSE
+DRY-019,Turmeric powder,Dry goods,dry,g,1 kg pack,1000,2000,800,180,FALSE
+DRY-020,Black pepper - ground,Dry goods,dry,g,500 g pack,500,2000,750,180,FALSE
+DRY-021,Coconut oil,Dry goods,dry,ml,5 L can,5000,20000,8000,180,TRUE
+DRY-022,Sunflower oil,Dry goods,dry,ml,20 L can,20000,40000,20000,180,TRUE
+DRY-023,Olive oil,Dry goods,dry,ml,5 L can,5000,10000,5000,365,FALSE
+DRY-024,Tomato paste,Dry goods,dry,g,3 kg tin,3000,9000,3000,540,FALSE
+DRY-025,Soy sauce,Dry goods,dry,ml,5 L can,5000,10000,5000,540,FALSE
+DRY-026,Vinegar,Dry goods,dry,ml,5 L can,5000,10000,5000,540,FALSE
+DRY-027,Coffee beans - espresso blend,Dry goods,dry,g,1 kg bag,1000,12000,5000,180,TRUE
+DRY-028,Tea - Ceylon black,Dry goods,dry,g,1 kg pack,1000,4000,1500,365,FALSE
+DAI-001,Fresh milk,Dairy,chiller,ml,1 L pack,1000,30000,12000,7,TRUE
+DAI-002,Whipping cream,Dairy,chiller,ml,1 L pack,1000,12000,5000,21,TRUE
+DAI-003,Butter - unsalted,Dairy,chiller,g,500 g pack,500,15000,6000,90,TRUE
+DAI-004,Cheddar cheese,Dairy,chiller,g,2 kg block,2000,6000,2000,120,TRUE
+DAI-005,Mozzarella,Dairy,chiller,g,2 kg block,2000,8000,3000,120,TRUE
+DAI-006,Cream cheese,Dairy,chiller,g,2 kg tub,2000,4000,1500,60,FALSE
+DAI-007,Yoghurt - plain,Dairy,chiller,g,1 kg tub,1000,3000,1000,14,FALSE
+DAI-008,Eggs,Dairy,chiller,ea,tray of 30,30,600,240,21,TRUE
+MEA-001,Chicken breast,Meat,chiller,g,1 kg pack,1000,20000,8000,3,TRUE
+MEA-002,Chicken thigh - boneless,Meat,chiller,g,1 kg pack,1000,15000,6000,3,TRUE
+MEA-003,Chicken - whole,Meat,chiller,g,1 kg pack,1000,10000,4000,3,TRUE
+MEA-004,Beef - striploin,Meat,chiller,g,1 kg pack,1000,8000,3000,4,TRUE
+MEA-005,Beef - stewing,Meat,chiller,g,1 kg pack,1000,6000,2500,4,FALSE
+MEA-006,Pork belly,Meat,chiller,g,1 kg pack,1000,5000,2000,4,FALSE
+MEA-007,Bacon,Meat,chiller,g,1 kg pack,1000,4000,1500,21,FALSE
+MEA-008,Sausages - chicken,Meat,freezer,g,1 kg pack,1000,6000,2500,90,FALSE
+SEA-001,Prawns - medium,Seafood,freezer,g,1 kg pack,1000,10000,4000,90,TRUE
+SEA-002,Cuttlefish,Seafood,freezer,g,1 kg pack,1000,6000,2500,90,FALSE
+SEA-003,Seer fish,Seafood,chiller,g,1 kg,1000,8000,3000,2,TRUE
+SEA-004,Tuna,Seafood,chiller,g,1 kg,1000,6000,2500,2,TRUE
+SEA-005,Crab,Seafood,chiller,g,1 kg,1000,5000,2000,2,FALSE
+VEG-001,Onions - big,Vegetables,dry,g,25 kg sack,25000,30000,12000,21,TRUE
+VEG-002,Onions - red,Vegetables,dry,g,10 kg sack,10000,15000,6000,21,FALSE
+VEG-003,Garlic,Vegetables,dry,g,1 kg,1000,5000,2000,30,FALSE
+VEG-004,Ginger,Vegetables,dry,g,1 kg,1000,3000,1200,21,FALSE
+VEG-005,Tomatoes,Vegetables,chiller,g,1 kg,1000,12000,5000,7,TRUE
+VEG-006,Carrots,Vegetables,chiller,g,1 kg,1000,8000,3000,14,FALSE
+VEG-007,Bell peppers,Vegetables,chiller,g,1 kg,1000,6000,2500,10,FALSE
+VEG-008,Potatoes,Vegetables,dry,g,10 kg sack,10000,20000,8000,21,FALSE
+VEG-009,Lettuce,Vegetables,chiller,g,1 kg,1000,4000,1500,5,TRUE
+VEG-010,Cucumber,Vegetables,chiller,g,1 kg,1000,5000,2000,7,FALSE
+VEG-011,Green chilli,Vegetables,chiller,g,1 kg,1000,2000,800,7,FALSE
+VEG-012,Curry leaves,Vegetables,chiller,g,1 kg,1000,1000,400,5,FALSE
+FRU-001,Lime,Fruit,chiller,g,1 kg,1000,6000,2500,14,FALSE
+FRU-002,Pineapple,Fruit,chiller,ea,each,1,20,8,7,FALSE
+FRU-003,Banana,Fruit,dry,g,1 kg,1000,5000,2000,5,FALSE
+FRU-004,Avocado,Fruit,chiller,ea,each,1,30,12,7,FALSE
+FRU-005,Strawberries - frozen,Fruit,freezer,g,1 kg pack,1000,4000,1500,180,FALSE
+BEV-001,Coca-Cola 400ml,Beverages,dry,ea,case of 24,24,240,96,180,FALSE
+BEV-002,Sprite 400ml,Beverages,dry,ea,case of 24,24,144,60,180,FALSE
+BEV-003,Soda water,Beverages,dry,ea,case of 24,24,240,96,180,FALSE
+BEV-004,Tonic water,Beverages,dry,ea,case of 24,24,120,48,180,FALSE
+BEV-005,Mineral water 1L,Beverages,dry,ea,case of 12,12,240,96,365,FALSE
+BAR-001,Gin - imported,Bar spirits,bar,ml,750 ml bottle,750,6000,3000,1095,TRUE
+BAR-002,Vodka - imported,Bar spirits,bar,ml,750 ml bottle,750,6000,3000,1095,TRUE
+BAR-003,White rum,Bar spirits,bar,ml,750 ml bottle,750,4500,2250,1095,TRUE
+BAR-004,Arrack - premium,Bar spirits,bar,ml,750 ml bottle,750,9000,4500,1095,TRUE
+BAR-005,Whisky - blended,Bar spirits,bar,ml,750 ml bottle,750,6000,3000,1095,TRUE
+BAR-006,Beer - lager,Bar beer,bar,ea,case of 24,24,480,192,120,TRUE
+BAR-007,Beer - strong,Bar beer,bar,ea,case of 24,24,240,96,120,TRUE
+BAR-008,Red wine - house,Bar wine,bar,ml,750 ml bottle,750,9000,4500,730,FALSE
+BAR-009,White wine - house,Bar wine,bar,ml,750 ml bottle,750,9000,4500,730,FALSE
+PKG-001,Takeaway box - large,Packaging,packaging,ea,pack of 50,50,500,200,,FALSE
+PKG-002,Takeaway box - small,Packaging,packaging,ea,pack of 50,50,500,200,,FALSE
+PKG-003,Paper cup 8oz,Packaging,packaging,ea,sleeve of 50,50,1000,400,,FALSE
+PKG-004,Cake box,Packaging,packaging,ea,pack of 25,25,300,120,,FALSE
+PKG-005,Paper napkin,Packaging,packaging,ea,pack of 100,100,3000,1200,,FALSE
+PKG-006,Cling film,Packaging,packaging,ea,roll,1,10,4,,FALSE
+PKG-007,Aluminium foil,Packaging,packaging,ea,roll,1,10,4,,FALSE
+CLN-001,Dishwash liquid,Cleaning,chemical,ml,5 L can,5000,20000,8000,730,FALSE
+CLN-002,Floor cleaner,Cleaning,chemical,ml,5 L can,5000,15000,6000,730,FALSE
+CLN-003,Bleach,Cleaning,chemical,ml,5 L can,5000,10000,4000,365,FALSE
+CLN-004,Glass cleaner,Cleaning,chemical,ml,1 L bottle,1000,5000,2000,730,FALSE
+CLN-005,Toilet cleaner,Cleaning,chemical,ml,1 L bottle,1000,6000,2500,730,FALSE
+CLN-006,Hand soap,Cleaning,chemical,ml,5 L can,5000,10000,4000,730,FALSE
+CLN-007,Degreaser - kitchen,Cleaning,chemical,ml,5 L can,5000,10000,4000,730,FALSE
+CLN-008,Scrub pad,Cleaning,chemical,ea,pack of 10,10,50,20,,FALSE
+CLN-009,Garbage bag - large,Cleaning,chemical,ea,pack of 20,20,200,80,,FALSE
+CLN-010,Mop head,Cleaning,chemical,ea,each,1,10,4,,FALSE
+CLN-011,Toilet paper roll,Cleaning,chemical,ea,pack of 10,10,200,80,,FALSE
+CLN-012,Hand towel roll,Cleaning,chemical,ea,each,1,40,16,,FALSE
+GAS-001,LP gas 12.5kg,Gas,gas,ea,cylinder,1,8,3,,TRUE
