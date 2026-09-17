@@ -13,3 +13,6 @@ seed.sql
 deploy/.env
 backups/
 *.sql.gz
+
+# Retry script log and any local edits to its OCIDs.
+deploy/retry-launch.log
