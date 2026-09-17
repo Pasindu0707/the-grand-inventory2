@@ -22,9 +22,8 @@
 		reverse_proxy api:3000
 	}
 
-	handle /health {
-		reverse_proxy api:3000
-	}
+	# No separate /health block: the API registers it under the v1 prefix, so
+	# the real endpoint is /api/v1/health and the rule above already carries it.
 
 	# Everything else is the Angular app. try_files sends unknown paths to
 	# index.html so the router can handle deep links like /requests/42 on a

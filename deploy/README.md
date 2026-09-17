@@ -108,12 +108,42 @@ The `migrate` service runs `db/migrations/*.sql` once and exits 0. The API will
 not start until it has, so a failed migration stops the deploy rather than
 leaving a server running against a schema it does not understand.
 
-## 5. Create the first administrator
+## 5. Create the branches, then the first administrator
+
+**Do the branches first.** There is a deadlock otherwise, and it is not obvious:
+login requires a `locationId`, a fresh database has no locations, and the admin
+who would create them through Setup cannot get in. Migrations build the
+`locations` table but never fill it — until now the only rows came from the
+demo seed.
+
+Edit `deploy/first-run.sql` so the names match your signage (keep the codes),
+then:
+
+```bash
+cd /opt/thegrand && docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env exec -T db psql -U grand -d thegrand < deploy/first-run.sql
+```
+
+It prints the five branches back. That is the only thing that has to be done
+outside the app — sections, items, suppliers and staff are all built from the
+Setup screens once you are logged in.
+
+Now the administrator. The script takes flags rather than prompting, so pass
+them. `--group` gives an admin no home branch, which is what you want for the
+person configuring the system:
 
 ```bash
 cd /opt/thegrand
 docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env \
-  run --rm api node scripts/add-user.mjs
+  run --rm api node scripts/add-user.mjs --name "Your Name" --role admin --pin 4821 --group
+```
+
+Roles are `admin`, `management`, `storekeeper`, `kitchen`, `cleaning`. Choose a
+PIN that is not 4821. Without `--group` the script assigns a home branch and
+defaults to `GB`. To check who exists:
+
+```bash
+docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env \
+  run --rm api node scripts/add-user.mjs --list
 ```
 
 Then open `http://<public-ip>` and sign in.
@@ -121,9 +151,13 @@ Then open `http://<public-ip>` and sign in.
 **Smoke test before trusting it:**
 
 ```bash
-curl -i http://<public-ip>/health          # API is alive behind the proxy
-curl -i http://<public-ip>/                # Angular console is served
+curl -s http://<public-ip>/api/v1/health   # {"status":"ok","db":"up","ledgerRows":N}
+curl -I http://<public-ip>/                # Angular console is served (200)
 ```
+
+The health endpoint queries the database before answering, so a 200 here means
+the proxy, the API *and* Postgres are all working — not just that something is
+listening.
 
 ## 6. Switch to HTTPS
 
@@ -220,6 +254,8 @@ keep reaching the old address for up to a day after the new server is live.
 | Certificate fails | DNS not resolving yet, or port 80 closed — Let's Encrypt needs 80 |
 | Build killed part way | Out of memory during the Angular build; the swap step covers this |
 | `out of capacity` creating the instance | Oracle has no free A1 in that region right now; retry |
+| `No outlet "GB"` from add-user.mjs | Branches not created yet — run `deploy/first-run.sql` (step 5) |
+| Login screen shows no branch to pick | Same cause: `deploy/first-run.sql` has not been run |
 
 Useful commands:
 
