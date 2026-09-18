@@ -12,10 +12,14 @@
 # Leave it running overnight. It stops the moment an instance is created, and
 # prints the public IP.
 #
-# It deliberately gives up on any error that is NOT a capacity error. A wrong
-# subnet OCID would otherwise retry forever without ever being able to succeed.
+# It waits out two things: no capacity, and a 429 telling it to slow down. It
+# gives up on anything else, because a wrong subnet OCID would otherwise retry
+# forever without ever being able to succeed.
 
 set -uo pipefail
+
+# Silence the CLI key-permissions notice so it does not clutter the log.
+export SUPPRESS_LABEL_WARNING=True
 
 # ---------------------------------------------------------------------------
 # Fill these in. Run with --discover to have them printed for you.
@@ -33,10 +37,19 @@ SSH_PUB_KEY="${SSH_PUB_KEY:-$HOME/.ssh/oracle_grand.pub}"
 # Left blank, the newest Ubuntu 22.04 arm64 image is looked up for you.
 IMAGE_OCID="${IMAGE_OCID:-}"
 
-# Seconds between attempts. Randomised inside this range so the requests do not
-# arrive on a perfectly predictable cadence.
-MIN_WAIT="${MIN_WAIT:-60}"
-MAX_WAIT="${MAX_WAIT:-150}"
+# Seconds between attempts, randomised inside this range.
+#
+# These were 60-150 and that was too fast: Oracle throttled launch_instance
+# with a 429 after 23 attempts in 80 minutes. Asking more often does not find
+# capacity sooner -- it just gets you rate limited, and a throttled client is
+# one that cannot take the slot when it does appear.
+MIN_WAIT="${MIN_WAIT:-180}"
+MAX_WAIT="${MAX_WAIT:-300}"
+
+# How long to stand down when Oracle returns 429. Grows with each throttle,
+# capped at an hour.
+THROTTLE_BASE="${THROTTLE_BASE:-600}"
+THROTTLE_CAP="${THROTTLE_CAP:-3600}"
 
 LOG="${LOG:-$(dirname "${BASH_SOURCE[0]}")/retry-launch.log}"
 
@@ -112,6 +125,7 @@ say "Starting. ${OCPUS} OCPU / ${MEMORY_GB} GB, boot ${BOOT_GB} GB, AD ${AVAILAB
 say "Retrying every ${MIN_WAIT}-${MAX_WAIT}s until capacity appears. Ctrl-C to stop."
 
 ATTEMPT=0
+THROTTLES=0
 while true; do
 	ATTEMPT=$((ATTEMPT + 1))
 
@@ -147,12 +161,26 @@ while true; do
 		exit 0
 	fi
 
-	# Capacity is the one error worth waiting out. Anything else is a real
-	# problem with the request and will never succeed, however long we wait.
+	# Two errors are worth waiting out: no capacity, and being told to slow
+	# down. Everything else is a problem with the request itself and will
+	# never succeed, however long we wait.
 	if echo "$OUT" | grep -qiE 'out of host capacity|outofhostcapacity|out of capacity'; then
+		THROTTLES=0
 		WAIT=$((RANDOM % (MAX_WAIT - MIN_WAIT + 1) + MIN_WAIT))
 		say "attempt ${ATTEMPT}: no capacity. Waiting ${WAIT}s."
 		sleep "$WAIT"
+		continue
+	fi
+
+	# 429. Transient, and the earlier version of this script wrongly treated it
+	# as fatal and stopped overnight. Stand down for longer each time, because
+	# continuing to hammer a throttled endpoint only extends the throttle.
+	if echo "$OUT" | grep -qiE 'toomanyrequests|too many requests|"status": *429'; then
+		THROTTLES=$((THROTTLES + 1))
+		BACK=$((THROTTLE_BASE * THROTTLES))
+		[ "$BACK" -gt "$THROTTLE_CAP" ] && BACK=$THROTTLE_CAP
+		say "attempt ${ATTEMPT}: rate limited (429), throttle #${THROTTLES}. Standing down ${BACK}s."
+		sleep "$BACK"
 		continue
 	fi
 
